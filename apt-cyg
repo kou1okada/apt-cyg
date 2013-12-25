@@ -719,16 +719,10 @@ case "$command" in
     echo Package $pkg removed
 
     done
-
   ;;
 
   *)
-    if type "apt-cyg-$command" >/dev/null; then
-      "apt-cyg-$command" $packages
-    else
-      usage
-    fi
+    usage
   ;;
 
 esac
-
