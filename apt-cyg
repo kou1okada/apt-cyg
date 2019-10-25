@@ -3,19 +3,19 @@
 # apt-cyg: install tool for cygwin similar to debian apt-get
 
 # The MIT License (MIT)
-# 
+#
 # Copyright (c) 2013 Trans-code Design
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be included in
 # all copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -23,7 +23,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-# 
+#
 
 # EMBED_BEGIN: hhs_embed
 
@@ -112,7 +112,7 @@ function warning () #= [MESSAGES ...]
 {
   (( THRESHOLD_OF_WARNING <= ${VERBOSE:-0} )) || return 1
   echo -e "${WARNING_COLOR}Warning:${SGR_reset} $@"
-  (( THRESHOLD_OF_WARNIGN <= SOURCE_AT )) && source_at 2
+  (( THRESHOLD_OF_WARNING <= SOURCE_AT )) && source_at 2
 } >&2 #/warning
 
 function info () #= [MESSAGES ...]
@@ -306,7 +306,7 @@ function version ()
   cat<<-EOD
 	kou1okada/apt-cyg
 	forked from transcode-open/apt-cyg$(git_status)
-	
+
 	This script is based on apt-cyg version 0.57
 	Copyright (c) 2005-9 Stephen Jungels. Released under the GPL.
 	Copyright (c) 2013-7 Stephen Jungels. Republished under the MIT license.
@@ -333,7 +333,7 @@ function detect_field_width ()
 # w(0) w(1) w(2) ... w(NF) sum(w(1),w(2), ..., w(NF))+NF-1
 # Now NF is a number of fields,
 # w(x) is a function of maxium width of field x th
-# (note that 0 does not mean the field but the whole line) 
+# (note that 0 does not mean the field but the whole line)
 # and sum(v1,v2, ..., vn) is a function to sum all arguments.
 {
   awk '
@@ -450,9 +450,9 @@ function setuprc_set_section () # <section> [<values> ...]
   local s="$(join_str_ex $'\n\t' "${@}")"
   local setuprc="/etc/setup/setup.rc"
   local setuprc_bak="${setuprc},$(date -r "$setuprc" "+%Y%m%d_%H%M%S")"
-  
+
   cp -a "$setuprc" "$setuprc_bak"
-  
+
   cp2utf8 "$setuprc_bak" \
   | awk -vRS='\n\\<|\n\\'\' -vFS='\n\t' -vsection="${1//\\/\\\\}" -vs="${s//\\/\\\\}" '
     $1 != section
@@ -469,17 +469,17 @@ function findworkspace()
   mirror="$last_mirror"
   cache="$(cygpath -au "$last_cache")"
   arch="$(current_cygarch)"
-  
+
   cache="${cache%/}"
   mirror="${mirror%/}"
-  
+
   mirrordir="$(mirror_to_mirrordir "$mirror/")"
-  
+
   verbose 1 "Cache directory is $cache"
   verbose 1 "Mirror is $mirror"
   mkdir -p "$cache/$mirrordir/$arch"
   cd "$cache/$mirrordir/$arch"
-  
+
   init_gnupg
   fetch_trustedkeys
 }
@@ -525,17 +525,17 @@ function setupini_download ()
 {
   local BASEDIR="$cache/$mirrordir/$arch"
   mkdir -p "$BASEDIR" || { error "mkdir failed: $BASEDIR"; exit 1; }
-  
+
   [ $noscripts -ne 0 -o $noupdate -ne 0 ] && return
-  
+
   pushd "$BASEDIR" > /dev/null
   files_backup setup.ini setup.ini.sig setup.bz2 setup.bz2.sig
-  
+
   while true; do
     verbose 1 "Updating setup.ini"
     download_and_verify "$mirror/$arch/setup.bz2" && { bunzip2 -k setup.bz2 && mv setup setup.ini || rm -f setup.bz2; }
     download_and_verify "$mirror/$arch/setup.ini" || break
-    
+
     files_backup_clean setup.ini setup.ini.sig setup.bz2 setup.bz2.sig
     popd > /dev/null
     verbose 1 "Updated setup.ini"
@@ -834,13 +834,24 @@ function apt-cyg-pathof ()
 function apt-cyg-upgrade-self ()
 {
   local basedir="$(dirname "$(readlink -f "$(which "$0")")")"
-  if [ ! -d "$basedir/.git" ]; then
-    error "apt-cyg is not under the git version control."
-    exit 1
+  if [ -d "$basedir/.git" ]; then
+    pushd "$basedir" > /dev/null
+    git pull -v
+    popd > /dev/null
+    #error "apt-cyg is not under the git version control."
+    #exit 1
+  else
+    local updated_url='https://raw.githubusercontent.com/cslycord/apt-cyg/master/apt-cyg'
+    # local updated_url='https://raw.githubusercontent.com/kou1okada/apt-cyg/master/apt-cyg'
+    local temp_file=$(mktemp)
+    local this_script="${basedir}/$(basename ${updated_url})"
+    wget -O - ${updated_url} >> $temp_file
+    chmod +x $temp_file
+    { diff $temp_file $this_script >/dev/null && exit 0; } || cp $temp_file $this_script
+    rm $temp_file
+    $(${this_script} upgrade-self)
+    exit 0
   fi
-  pushd "$basedir" > /dev/null
-  git pull -v
-  popd > /dev/null
 }
 
 function proxy_auto ()
@@ -850,7 +861,7 @@ function proxy_auto ()
   local last="$(stat -c %Y "$cache" 2>/dev/null)"
   local now="$(date +%s)"
   local proxy
-  
+
   [ -n "$OPT_PROXY_FORCE_REFRESH" ] && last=0
   if (( (now - ${last:-0}) < OPT_PROXY_REFRESH_INTERVAL )); then
     proxy="$(<"$cache")"
@@ -915,24 +926,24 @@ PACKAGE_DB="/etc/setup/installed.db"
 function package_db-version_check ()
 {
   [ -n "$PACKAGE_DB_VERSION_CHECK_DONE" ] && return
-  
+
   local vernhdr='INSTALLED\.DB [0-9]+'
   local line1="$(head -n1 "${PACKAGE_DB}")"
   local verhdr=( $line1 )
   local pkgname="${verhdr[0]}"
   local dbver
   [ "${verhdr[0]}" = "INSTALLED.DB" ] && dbver="${verhdr[1]}" || dbver="1"
-  
+
   if echo "$line1" | grep -Eqvx "${vernhdr}"; then
     warning "${PACKAGE_DB} does not have version header. The first line is below:\n" \
             "$(head -n1 "${PACKAGE_DB}")\n"
-    
+
     # The earlyer version of apt-cyg was not treat version header correctly.
     if grep -EHnx "${vernhdr}" "${PACKAGE_DB}" >&2; then
       echo -e "The above line looks like version header, but it is not the first line.\n" >&2
     fi
   fi
-  
+
   if (( dbver < 3 )); then
     warning "${PACKAGE_DB} version is less than 3.\n" \
             "Before continuing, recommend to execute below command:\n" \
@@ -944,7 +955,7 @@ function package_db-version_check ()
       exit 1
     }
   fi
-  
+
   if (( 3 < dbver )); then
     error "${PACKAGE_DB} has unknown version header.\n" \
           "Currently apt-cyg supports the DB of ver 3 or ealyer, but your DB is ver $dbver.\n"
@@ -955,7 +966,7 @@ function package_db-version_check ()
       exit 1
     }
   fi
-  
+
   PACKAGE_DB_VERSION_CHECK_DONE=1
 }
 
@@ -963,7 +974,7 @@ function package_db-version_check ()
 function package_db-is_registered ()
 {
   package_db-version_check
-  
+
   awk '
     $1 == PKGNAME && NF != 2 {found = 1; exit}
     END {exit !found}
@@ -973,7 +984,7 @@ function package_db-is_registered ()
 function package_db-list ()
 {
   package_db-version_check
-  
+
   awk '
     NF == 3 {
       version = gensub(/^(.*)\.(tgz|tbz|tbz2|tb2|taz|tz|tlz|txz|tar\.(gz|bz2|Z|lz|lzma|xz))$/, "\\1", 1, substr($2, length($1) + 2));
@@ -989,16 +1000,16 @@ function package_db-register ()
   local pkgname="$(get_pkgname "$pkgfile")"
   local user_picked="${2:-0}"
   local work="/tmp/apt-cyg.$$.${PACKAGE_DB##*/}"
-  
+
   package_db-version_check
-  
+
   awk '
     function register() {print PKGNAME " " PKGFILE " " USER_PICKED; registered = 1;}
     !registered && PKGNAME < $1 && NF != 2 {register()}
     {print $0}
     END {if (!registered) register()}
   ' PKGNAME="$pkgname" PKGFILE="${pkgfile}" USER_PICKED="${user_picked}" "${PACKAGE_DB}" > "${work}"
-  
+
   mv "${PACKAGE_DB}" "${PACKAGE_DB}-save"
   mv "${work}"       "${PACKAGE_DB}"
 }
@@ -1011,9 +1022,9 @@ function package_db_change_mark () # <user_picked> [<package_names> ...]
   local user_picked="$1"
   local PACKAGE_NAMES="$(join_str $'\x1c' "${@:2}")"
   local work="/tmp/apt-cyg.$$.${PACKAGE_DB##*/}"
-  
+
   package_db-version_check
-  
+
   awk -vPACKAGE_NAMES="$PACKAGE_NAMES" -vUSER_PICKED="$user_picked" '
     BEGIN {
       split(PACKAGE_NAMES, package_names, "\x1c");
@@ -1029,7 +1040,7 @@ function package_db_change_mark () # <user_picked> [<package_names> ...]
       print msg > "/dev/stderr"
     }
   ' "${PACKAGE_DB}" 2>&1 >"${work}"
-  
+
   mv "${PACKAGE_DB}" "${PACKAGE_DB}-save"
   mv "${work}"       "${PACKAGE_DB}"
 }
@@ -1039,11 +1050,11 @@ function package_db_change_mark () # <user_picked> [<package_names> ...]
 function package_db-unregister ()
 {
   local work="/tmp/apt-cyg.$$.${PACKAGE_DB##*/}"
-  
+
   package_db-version_check
-  
+
   awk '!(PKGNAME == $1 && NF != 2) {print $0}' PKGNAME="$1" "${PACKAGE_DB}" > "${work}"
-  
+
   mv "${PACKAGE_DB}" "${PACKAGE_DB}-save"
   mv "${work}"       "${PACKAGE_DB}"
 }
@@ -1182,13 +1193,13 @@ function apt-cyg-completion-install ()
     error "bash-completion is not installed."
     exit 1
   fi
-  
+
   local __APT_CYG_SUBCMDS
   local __APT_CYG_OPTIONS
   local __APT_CYG_SCRIPTPATH="$(realpath "$(which apt-cyg)")"
   local __APT_CYG_SCRIPTDIR="${__APT_CYG_SCRIPTPATH%/*}"
   local __APT_CYG_COMPLETION_DISABLE_AUTOUPDATE="$OPT_COMPLETION_DISABLE_AUTOUPDATE"
-  
+
   readarray -t __APT_CYG_SUBCMDS < <(grep "^function " "$__APT_CYG_SCRIPTPATH" | awk 'match($2, /apt-cyg-([-_0-9A-Za-z]+)/,m){print m[1]}')
   readarray -t __APT_CYG_OPTIONS < <(
     awk '
@@ -1200,16 +1211,16 @@ function apt-cyg-completion-install ()
       }
       ' "$__APT_CYG_SCRIPTPATH"
     )
-  
+
   cat <<-EOD > /etc/bash_completion.d/apt-cyg
 		$(declare -p __APT_CYG_{SUBCMDS,OPTIONS,SCRIPTPATH,SCRIPTDIR,COMPLETION_DISABLE_AUTOUPDATE} | sed -re 's/^declare/\0 -g/g')
-		
+
 		# BEGIN_MODULE: bash completion for apt-cyg
 		# END_MODULE:   bash completion for apt-cyg
-		
+
 		complete -F __apt-cyg apt-cyg
 		EOD
-  
+
   replace_module "bash completion for apt-cyg" "${BASH_SOURCE}" /etc/bash_completion.d/apt-cyg
   touch -r "$__APT_CYG_SCRIPTPATH" "/etc/bash_completion.d/apt-cyg"
 
@@ -1221,7 +1232,7 @@ function apt-cyg-completion-install ()
 function __apt-cyg ()
 {
   local cur prev getsubcmd subcmd
-  
+
   # Auto update for completion script.
   if [ -z "$__APT_CYG_COMPLETION_DISABLE_AUTOUPDATE" -a "$__APT_CYG_SCRIPTPATH" -nt "/etc/bash_completion.d/apt-cyg" ]; then
     apt-cyg completion-install >/dev/null 2>&1
@@ -1229,12 +1240,12 @@ function __apt-cyg ()
     __apt-cyg "$@"
     return
   fi
-  
+
   _get_comp_words_by_ref -n : cur prev
-  
+
   getsubcmd=( apt-cyg --completion-get-subcommand $(echo "${COMP_LINE}" | sed -r -e 's/^[^ \t]+//g' -e 's/[^ \t]+$//g') )
   subcmd="$( "${getsubcmd[@]}" )"
-  
+
   case "$subcmd" in
     install|depends|rdepends|describe|find|category)
       COMPREPLY=( $(awk '/^@ /{print $2}' "$(apt-cyg pathof setup.ini)") )
@@ -1452,7 +1463,7 @@ function apt-cyg-update-setup ()
 {
   [ -n "$OPT_NO_UPDATE_SETUP" ] && return
   local TARGETS=( "${SETUP_EXE}" "${SETUP_EXE}.sig" )
-  
+
   pushd . > /dev/null
   findworkspace
   popd > /dev/null
@@ -1474,25 +1485,25 @@ function apt-cyg-update-setup ()
 function apt-cyg-setup ()
 {
   pushd "$(apt-cyg pathof cache)" > /dev/null
-  
+
   local setup=( "./${SETUP_EXE}" "$@" )
-  
+
   apt-cyg-update-setup
   "${setup[@]}"
-  
+
   popd > /dev/null
 }
 
 function apt-cyg-dist-upgrade-no-ask ()
 {
   local setup=( ".\\${SETUP_EXE}" -R "$(cygpath -wa /)" -B -q -n -g)
-  
+
   pushd "$(apt-cyg-pathof cache)" > /dev/null
-  
+
   apt-cyg-update-setup
   cygstart "$COMSPEC" /c 'ECHO Press any key to start dist-upgrade for cygwin '"$(current_cygarch)"' && PAUSE && START /WAIT '"${setup[@]}"' && ash -c "/bin/rebaseall -v" && ECHO dist-upgrade is finished && ECHO Press any key to exit && PAUSE' # '
   kill_all_cygwin_process
-  
+
   popd > /dev/null
 }
 
@@ -1518,7 +1529,7 @@ function apt-cyg-packages-total-size ()
 {
   local section="^$"
   (( 0 < $# )) && section="$1"
-  
+
   awk -v SECTION="$section" '
     /^@ [ -~]+ *$/ {section = ""}
     match($0,/^\[([ -~]*)\] *$/,m) {section = m[1]}
@@ -1550,20 +1561,20 @@ function apt-cyg-repair-acl ()
 	This subcommand tries to repair the ACL for "${target}".
 	Maybe it repairs a cygwin that was installed by setup.exe with -B and --no-admin options.
 	But some package, that are failed to install by the ACL problem, need to be reinstalled.
-	
+
 	And unfortunately, perchance, this might cause some corruptions about the ACL.
 	You can find a backup of the ACL before being rewritten by this subcommand at below:
 	  "${aclbackup}.bin"
 	  "${aclbackup}.txt"
-	
+
 	Are you sure ?
 	EOD
   )" || exit 1
   echo
-  
+
   comspec /c icacls.exe "$(cygpath -w "${target}")" /save "$(cygpath -w "${aclbackup}.bin")" > /dev/null
   comspec /c icacls.exe "$(cygpath -w "${target}")" | cp2utf8 > "$(cygpath -w "${aclbackup}.txt")"
-  
+
   comspec /c icacls.exe "$(cygpath -w "${target}")" \
     /grant \
       "%USERDOMAIN%\\%USERNAME%:F" \
@@ -1636,7 +1647,7 @@ function download_packages () #= pos section type [package_names ...]
   local section="$2"
   local type="$3"
   shift 3
-  
+
   case "$pos" in
   here)
     ;;
@@ -1648,7 +1659,7 @@ function download_packages () #= pos section type [package_names ...]
     exit 1
     ;;
   esac
-  
+
   local mirror="$(apt-cyg pathof mirror)"
   local line
   local pkgs="$(get_archives_list "$section" "$type" "$@")"
@@ -1662,7 +1673,7 @@ function download_packages () #= pos section type [package_names ...]
     local url="${mirror%/}/${tmp[0]}"
     local size="${tmp[1]}"
     local digest="${tmp[2]}"
-    if [ "$pos" = "mirror" ]; then  
+    if [ "$pos" = "mirror" ]; then
       mkdir -vp "$path"
       pushd "$path"
     fi
@@ -1776,7 +1787,7 @@ function apt-cyg-filesearch () # [<pattern>]
   cachedir="/tmp/.apt-cyg.cache/filesearch"
   cachequery="$cachedir/$(sha256sum <<<"$1"|awk '$0=$1')"
   mkdir -p "$cachedir"
-  
+
   [ ! -e "$cachequery" ] && cygcheck -p "$1" >"$cachequery"
   readarray -t packages < "$cachequery"
   packages=( "${packages[@]:1}" )
@@ -1800,7 +1811,7 @@ function update_packageof_cache ()
   local lstgz_stamp="$(find /etc/setup/ -maxdepth 1 -type f -name '*.lst.gz' -exec stat -c %Y {} + | sort | tail -n1)"
   local cache_stamp="$(stat "$PACKAGEOF_CACHE" -c %Y 2>/dev/null || echo 0)"
   local n="$(ls -1 /etc/setup/*.lst.gz|wc -l)"
-  
+
   if (( cache_stamp < lstgz_stamp )) || [ -n "$OPT_FORCE_UPDATE_PACKAGEOF_CACHE" ]; then
     verbose 1 "Updating packageof cache:" >&2
     progress_init
@@ -1901,13 +1912,13 @@ function lesser-parallel ()
         ;;
       esac
     done
-    
+
     lesser-parallel-restrict-jobs-count $LESSER_PARALLEL_MAX_JOBS
-    
+
     "${cmd[@]}" &
     PARALLEL_SEQ=$[$PARALLEL_SEQ + 1]
   done
-  
+
   lesser-parallel-restrict-jobs-count 1
 }
 
@@ -1940,165 +1951,165 @@ ARGS=()
 function parse_args ()
 {
   local unknown_option END_OPTS
-  
+
   while [ $# -gt 0 ]; do
     case "$1" in
-      
+
       --ag)
         OPT_AG="$1"
         shift
         ;;
-      
+
       --charch)
         OPT_CHARCH="$2"
         shift 2 || break
         ;;
-      
+
       --ignore-case|-i)
         ignore_case="$1"
         shift
         ;;
-      
+
       --force-remove)
         force_remove=1
         shift
         ;;
-      
+
       --force-fetch-trustedkeys)
         force_fetch_trustedkeys=1
         shift
         ;;
-      
+
       --force-update-packageof-cache)
         OPT_FORCE_UPDATE_PACKAGEOF_CACHE="$1"
         shift
         ;;
-      
+
       --no-verify|-X)
         OPTS4INHERIT+=( "$1" )
         no_verify=1
         shift
         ;;
-      
+
       --no-check-certificate)
         OPTS4INHERIT+=( "$1" )
         WGET+=( "--no-check-certificate" )
         shift
         ;;
-      
+
       --no-update-setup)
         OPT_NO_UPDATE_SETUP="$1"
         shift
         ;;
-      
+
       --no-header)
         OPT_NO_HEADER="$1"
         shift
         ;;
-      
+
       --proxy|-p)
         OPT_PROXY="$2"
         shift 2 || break
         ;;
-      
+
       --proxy-force-refresh)
         OPT_PROXY_FORCE_REFRESH="$1"
         shift
         ;;
-      
+
       --proxy-refresh-interval)
         OPT_PROXY_REFRESH_INTERVAL="$2"
         shift 2 || break
         ;;
-      
+
       --completion-get-subcommand)
         OPT_COMPLETION_GET_SUBCOMMAND="$1"
         shift
         ;;
-      
+
       --completion-disable-autoupdate)
         OPT_COMPLETION_DISABLE_AUTOUPDATE="$1"
         shift
         ;;
-      
+
       --max-jobs|-j)
         LESSER_PARALLEL_MAX_JOBS="$2"
         shift 2 || break
         ;;
-      
+
       --mirror|-m)
         OPT_MIRROR+=( "$2" )
         shift 2 || break
         ;;
-      
+
       --cache|-c)
         OPT_CACHE="$2"
         shift 2 || break
         ;;
-      
+
       --noscripts)
         noscripts=1
         shift
         ;;
-      
+
       # It will not register the user_picked flag in PACKAGE_DB.
       # This option is for internal use only.
       --no-user-picked)
         OPT_USER_PICKED=0
         shift
         ;;
-      
+
       --noupdate|-u)
         noupdate=1
         shift
         ;;
-      
+
       --ipv4|-4)
         WGET=( "${WGET[@]}" "--prefer-family=IPv4" )
         shift
         ;;
-      
+
       --no-progress)
         OPT_NO_PROGRESS="$1"
         shift
         ;;
-      
+
       --quiet|-q)
         OPT_VERBOSE_LEVEL=-1
         shift
         ;;
-      
+
       --verbose|-v)
         OPT_VERBOSE_LEVEL=2
         shift
         ;;
-      
+
       --help)
         usage
         exit 0
         ;;
-      
+
       --version)
         version
         exit 0
         ;;
-      
+
       --file|-f)
         [ -n "$2" ] && OPT_FILES+=( "$2" )
         shift 2 || break
         ;;
-      
+
       --)
         END_OPTS="$1"
         shift
         break
         ;;
-      
+
       -*)
         unknown_option="$1"
         break
         ;;
-      
+
       *)
         if [ -z "$SUBCOMMAND" ]; then
           SUBCOMMAND="$1"
@@ -2106,28 +2117,28 @@ function parse_args ()
           ARGS+=( "$1" )
         fi
         shift
-        
+
         ;;
-      
+
     esac
   done
   [ -n "$END_OPTS" ] && while (( 0 < "$#" )); do ARGS+=( "$1" ); shift; done
-  
+
   if [ -n "$OPT_COMPLETION_GET_SUBCOMMAND" ]; then
     echo "$SUBCOMMAND"
     exit
   fi
-  
+
   if [ -n "$unknown_option" ]; then
     error "Unknown option: $unknown_option"
     exit 1
   fi
-  
+
   if [ $# -gt 0 ]; then
     error "Number of parameters is not enough: $@"
     exit 1
   fi
-  
+
 } #/parse_args
 
 parse_args "$@"
@@ -2193,11 +2204,11 @@ function apt-cyg-show ()
 function apt-cyg-find ()
 {
   local pkg
-  
+
   checkpackages "$@"
   findworkspace
   getsetup
-  
+
   for pkg do
     echo ""
     echo "Searching for installed packages matching $pkg:"
@@ -2222,7 +2233,7 @@ function apt-cyg-category ()
 function apt-cyg-describe ()
 {
   local pkg exact
-  
+
   checkpackages "$@"
   findworkspace
   getsetup
@@ -2248,12 +2259,12 @@ function apt-cyg-install ()
 {
   local pkg
   local script
-  
+
   package_db-version_check
   checkpackages "$@"
   findworkspace
   getsetup
-  
+
   for pkg do
     if package_db-is_registered "$pkg"; then
       echo Package $pkg is already installed, skipping
@@ -2261,9 +2272,9 @@ function apt-cyg-install ()
     fi
     verbose 0 ""
     verbose 0 "Installing $pkg"
-    
+
     # look for package and save desc file
-    
+
     mkdir -p "release/$pkg"
     awk > "release/$pkg/desc" -v package="$pkg" \
       'BEGIN{RS="\n\n@ "; FS="\n"} {if ($1 == package) {desc = $0; px++}} \
@@ -2276,43 +2287,43 @@ function apt-cyg-install ()
       exit 1
     fi
     verbose 0 "Found package $pkg"
-    
+
     # download and unpack the bz2 file
-    
+
     # pick the latest version, which comes first
     local install="$(awk '/^install: / { print $2; exit }' "release/$pkg/desc")"
-    
+
     if [ -z "$install" ]; then
       verbose 0 "Could not find \"install\" in package description: obsolete package?"
       exit 1
     fi
-    
+
     local file="$(basename "$install")"
     cd "release/$pkg"
     "${WGET[@]}" -Nc $mirror/$install
-    
+
     # check the SHA512 hash
     local digest="$(awk '/^install: / { print $4; exit }' "desc")"
     if ! hash_check <<<"${digest} *${file}" ; then
       verbose 0 "error: hash did not match: $file"
       exit 1
     fi
-    
+
     verbose 0 "Unpacking..."
     tar > "/etc/setup/$pkg.lst" xvf "$file" -C / --numeric-owner
     gzip -f "/etc/setup/$pkg.lst"
     cd ../..
-    
-    
+
+
     # update the package database
-    
+
     package_db-register "$file" "$OPT_USER_PICKED"
-    
-    
+
+
     # recursively install required packages
-    
+
     local requires="$(grep "^requires: " "release/$pkg/desc" | sed -re 's/^requires: *(.*[^ ]) */\1/g' -e 's/ +/ /g')"
-    
+
     local warn=0
     if [ -n "$requires" ]; then
       verbose 0 "Package $pkg requires the following packages, installing:"
@@ -2329,9 +2340,9 @@ function apt-cyg-install ()
     if [ $warn -ne 0 ]; then
       warning "some required packages did not install, continuing"
     fi
-    
+
     # run all postinstall scripts
-    
+
     local pis="$(ls /etc/postinstall/*.sh 2>/dev/null | wc -l)"
     if [ $pis -gt 0 -a $noscripts -ne 1 ]; then
       verbose 0 "Running postinstall scripts"
@@ -2340,9 +2351,9 @@ function apt-cyg-install ()
         mv $script $script.done
       done
     fi
-    
+
     verbose 0 "Package $pkg installed"
-    
+
   done
 }
 
@@ -2351,7 +2362,7 @@ function apt-cyg-remove()
 {
   local pkg
   local req
-  
+
   package_db-version_check
   checkpackages "$@"
   for pkg do
@@ -2359,7 +2370,7 @@ function apt-cyg-remove()
       verbose 0 "Package $pkg is not installed, skipping"
       continue
     fi
-    
+
     local dontremove="cygwin coreutils gawk bzip2 tar xz wget bash"
     for req in $dontremove; do
       if [ "$pkg" = "$req" ]; then
@@ -2367,15 +2378,15 @@ function apt-cyg-remove()
         exit 1
       fi
     done
-    
+
     if [ ! -e "/etc/setup/$pkg.lst.gz" -a -z "$force_remove" ]; then
       verbose 0 "Package manifest missing, cannot remove $pkg.  Exiting"
       exit 1
     fi
     verbose 0 "Removing $pkg"
-    
+
     # run preremove scripts
-    
+
     local i postinstalls preremoves
     readarray -t postinstalls < <(zgrep -E "^etc/postinstall/.*[.]sh$"    "/etc/setup/${pkg}.lst.gz" | awk '{print "/"$0}')
     readarray -t preremoves   < <(zgrep -E "^etc/preremove/.*[.](da)?sh$" "/etc/setup/${pkg}.lst.gz" | awk '{print "/"$0}')
@@ -2383,13 +2394,13 @@ function apt-cyg-remove()
       verbose 0 "Running: ${i}"
       "${i}"
     done
-    
+
     gzip -cd "/etc/setup/$pkg.lst.gz" | awk '/[^\/]$/{printf("/%s\0", $0)}' | xargs -0 rm -f
     gzip -cd "/etc/setup/$pkg.lst.gz" | awk '/[^./].*[/]$/{printf("/%s\0", $0)}' | sort -zr | xargs -0 rmdir --ignore-fail-on-non-empty
     rm -f "${postinstalls[@]/%/.done}" "/etc/setup/$pkg.lst.gz"
     package_db-unregister "$pkg"
     verbose 0 "Package $pkg removed"
-    
+
   done
 }
 
