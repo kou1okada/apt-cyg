@@ -845,7 +845,7 @@ function apt-cyg-upgrade-self ()
     # local updated_url='https://raw.githubusercontent.com/kou1okada/apt-cyg/master/apt-cyg'
     local temp_file=$(mktemp)
     local this_script="${basedir}/$(basename ${updated_url})"
-    wget -O - ${updated_url} >> $temp_file
+    wget -q -O - ${updated_url} >> $temp_file
     chmod +x $temp_file
     { diff $temp_file $this_script >/dev/null && exit 0; } || cp $temp_file $this_script
     rm $temp_file
