@@ -29,6 +29,12 @@ Usage
 | `upgrade-self` |  to upgrade apt-cyg |
 | `depends <package names> ...` |  to show forward dependency information for packages with depth. |
 | `rdepends <package names> ...` |  to show reverse dependency information for packages with depth. |
+| `list-desired-packages` | List packages that have a category of Base or a mark of Manually installed. |
+| `list-installed-packages` | List packages that are installed. |
+| `list-required-packages` | List packages that required for desired packages. |
+| `list-overages-and-shortages-of-packages` | List overages and shortages of packages. |
+| `list-orphaned-packages` | List packages that are installed but no longer needed. |
+| `list-lacked-packages` | List packages that are required but not installed. |
 | `completion-install` |  to install completion. |
 | `completion-uninstall` |  to uninstall completion. |
 | `mirrors-list` |  to show list of mirrors. |

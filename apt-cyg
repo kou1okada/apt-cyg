@@ -195,6 +195,15 @@ function usage()
 	  rdepends <package names> ... :
 	                             to show reverse dependency information
 	                             for packages with depth.
+	  list-desired-packages    : List packages that have a category of Base
+	                             or a mark of Manually installed.
+	  list-installed-packages  : List packages that are installed.
+    list-required-packages   : List packages that required for desired packages.
+	  list-overages-and-shortages-of-packages :
+	                             List overages and shortages of packages
+	  list-orphaned-packages   : List packages that are installed
+	                             but no longer needed.
+	  list-lacked-packages     : List packages that are required but not installed.
 	  completion-install       : to install completion.
 	  completion-uninstall     : to uninstall completion.
 	  mirrors-list             : to show list of mirros.
@@ -1176,7 +1185,8 @@ function package_db-unregister ()
 #   package_name available shallow_depth deep_depth
 function dep_check ()
 {
-  awk \
+  sed -E 's/\s*\(\s*[<=>]+\s*[-.0-9]+\s*\)//g;s/_windows,?//g' "$(apt-cyg-pathof "setup.ini")" \
+  | awk \
   '
     function min(x,y) {return x < y ? x : y}
     function max(x,y) {return x < y ? y : x}
@@ -1218,7 +1228,7 @@ function dep_check ()
       }
     }
   ' \
-  DIR="$1" ROOTPKGS="$(join_str $'\x1c' "${@:2}")" "$(apt-cyg-pathof "setup.ini")" \
+  DIR="$1" ROOTPKGS="$(join_str $'\x1c' "${@:2}")" \
   | awk '
     function min(x,y) {return x < y ? x : y}
     function max(x,y) {return x < y ? y : x}
@@ -1252,6 +1262,49 @@ function apt-cyg-rdepends ()
   local pkg
   [ -z "$OPT_NO_HEADER" ] && printf "%-40s %s\t%s\t%s\n" "PKGNAME" "AVAIL" "SHALLOW" "DEEP"
   dep_check rdepends "$@"
+}
+
+function apt-cyg-list-desired-packages ()
+#   List packages that have a category of Base or a mark of Manually installed.
+{
+  {
+    apt-cyg-category Base
+    apt-cyg-mark-showmanual
+  } | sort | uniq
+}
+
+function apt-cyg-list-installed-packages ()
+#   List packages that are installed.
+{
+  local OPT_NO_HEADER=1
+  apt-cyg-show | awk '$0=$1' | sort | uniq
+}
+
+function apt-cyg-list-required-packages ()
+#   List packages that required for desired packages.
+{
+  local OPT_NO_HEADER=1
+  local pkgs
+  readarray -t pkgs < <(apt-cyg-list-desired-packages)
+  apt-cyg-depends "${pkgs[@]}" | awk '$0=$1' | sort | uniq
+}
+
+function apt-cyg-list-overages-and-shortages-of-packages ()
+#   List overages and shortages of packages
+{
+  comm <(apt-cyg-list-installed-packages) <(apt-cyg-list-required-packages)
+}
+
+function apt-cyg-list-orphaned-packages ()
+#   List packages that are installed but no longer needed.
+{
+  apt-cyg-list-overages-and-shortages-of-packages | awk -vFS=$'\t' '$0=$1'
+}
+
+function apt-cyg-list-lacked-packages ()
+#   List packages that are required but not installed.
+{
+  apt-cyg-list-overages-and-shortages-of-packages | awk -vFS=$'\t' '$0=$2'
 }
 
 function get_module_line () # <pattern> [<file>]
