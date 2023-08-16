@@ -198,7 +198,7 @@ function usage()
 	  list-desired-packages    : List packages that have a category of Base
 	                             or a mark of Manually installed.
 	  list-installed-packages  : List packages that are installed.
-    list-required-packages   : List packages that required for desired packages.
+	  list-required-packages   : List packages that required for desired packages.
 	  list-overages-and-shortages-of-packages :
 	                             List overages and shortages of packages
 	  list-orphaned-packages   : List packages that are installed
