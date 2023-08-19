@@ -159,6 +159,15 @@ TRUSTEDKEY_CYGWIN_URL_LATEST="https://cygwin.com/key/pubring.asc"
 
 # this script requires some packages
 
+APTCYG_REQIRED_PKGS=( libiconv wget )
+if   type -p gpg2 >/dev/null; then
+  APTCYG_REQIRED_PKGS+=( gnupg2 )
+elif type -p gpg  >/dev/null; then
+  APTCYG_REQIRED_PKGS+=( gnupg  )
+else
+  APTCYG_REQIRED_PKGS+=( gnupg2 )
+fi
+
 read WGET < <( type -p wget 2>/dev/null )
 read TAR  < <( type -p tar  2>/dev/null )
 read GAWK < <( type -p awk  2>/dev/null )
@@ -195,14 +204,13 @@ function usage()
 	  rdepends <package names> ... :
 	                             to show reverse dependency information
 	                             for packages with depth.
-	  list-desired-packages    : List packages that have a category of Base
-	                             or a mark of Manually installed.
+	  list-desired-packages    : List packages, whether the category is classified as Base, marked manually installed,
+	                             or required by apt-cyg.
 	  list-installed-packages  : List packages that are installed.
 	  list-required-packages   : List packages that required for desired packages.
 	  list-overages-and-shortages-of-packages :
 	                             List overages and shortages of packages
-	  list-orphaned-packages   : List packages that are installed
-	                             but no longer needed.
+	  list-orphaned-packages   : List packages that are installed but not required.
 	  list-lacked-packages     : List packages that are required but not installed.
 	  completion-install       : to install completion.
 	  completion-uninstall     : to uninstall completion.
@@ -1264,47 +1272,81 @@ function apt-cyg-rdepends ()
   dep_check rdepends "$@"
 }
 
-function apt-cyg-list-desired-packages ()
-#   List packages that have a category of Base or a mark of Manually installed.
+function assign_pkgdiffs () # [<pkg_diffs> ...]
+#   Assign <pkg_diffs> ... to ${pkgs2add@]} and ${pkgs2del[@]}.
+#   @return
+#     ${pkgs2add[@]} : <pkg_diffs> without "-" at the beginning of pkg_name.
+#     ${pkgs2del[@]} : <pkg_diffs> with    "-" at the beginning of pkg_name.
 {
+  local i
+  pkgs2add=()
+  pkgs2del=()
+  for i; do
+    [[ "$i" =~ ^- ]] && pkgs2del+=( "${i#-}" ) || pkgs2add+=( "$i" )
+  done
+}
+
+function pkg_filter () # [<pkg_diffs> ...]
+#   Drop ${pkgs2del[@]} from stdin.
+{
+  local pkgs2add pkgs2del; assign_pkgdiffs "$@"
+  if (( 0 < $# )); then
+    local filter="$(IFS="|" echo "^(${pkgs2del[*]})$")"
+    grep -vE "$filter"
+  else
+    cat
+  fi
+}
+
+function apt-cyg-list-desired-packages () # [<pkg_diffs> ...]
+#   List packages, whether the category is classified as Base, marked manually installed,
+#   or required by apt-cyg.
+{
+  local pkgs2add pkgs2del; assign_pkgdiffs "$@"
   {
     apt-cyg-category Base
     apt-cyg-mark-showmanual
-  } | sort | uniq
+    ( IFS=$'\n'; echo "${APTCYG_REQIRED_PKGS[@]}" )
+    (( 0 < ${#pkgs2add[@]} )) && ( IFS=$'\n'; echo "${pkgs2add[*]}" )
+  } | sort | uniq | pkg_filter "$@"
 }
 
-function apt-cyg-list-installed-packages ()
+function apt-cyg-list-installed-packages () #
 #   List packages that are installed.
 {
   local OPT_NO_HEADER=1
   apt-cyg-show | awk '$0=$1' | sort | uniq
 }
 
-function apt-cyg-list-required-packages ()
+function apt-cyg-list-required-packages () # [<pkg_diffs> ...]
 #   List packages that required for desired packages.
 {
   local OPT_NO_HEADER=1
   local pkgs
-  readarray -t pkgs < <(apt-cyg-list-desired-packages)
+  readarray -t pkgs < <( apt-cyg-list-desired-packages "$@" )
   apt-cyg-depends "${pkgs[@]}" | awk '$0=$1' | sort | uniq
 }
 
-function apt-cyg-list-overages-and-shortages-of-packages ()
+function apt-cyg-list-overages-and-shortages-of-packages () # [<pkg_diffs> ...]
 #   List overages and shortages of packages
+#   Result:
+#     TSV as:
+#       ${only_installed}\t${only_required}\t${both}
+#       ...
 {
-  comm <(apt-cyg-list-installed-packages) <(apt-cyg-list-required-packages)
+  comm <(apt-cyg-list-installed-packages) <(apt-cyg-list-required-packages "$@")
 }
 
 function apt-cyg-list-orphaned-packages ()
-#   List packages that are installed but no longer needed.
+#   List packages that are installed but not required.
 {
-  apt-cyg-list-overages-and-shortages-of-packages | awk -vFS=$'\t' '$0=$1'
+  apt-cyg-list-overages-and-shortages-of-packages "$@" | awk -vFS=$'\t' '$0=$1'
 }
 
-function apt-cyg-list-lacked-packages ()
+function apt-cyg-list-lacked-packages () # [<pkg_diffs> ...]
 #   List packages that are required but not installed.
 {
-  apt-cyg-list-overages-and-shortages-of-packages | awk -vFS=$'\t' '$0=$2'
+  apt-cyg-list-overages-and-shortages-of-packages "$@" | awk -vFS=$'\t' '$0=$2'
 }
 
 function get_module_line () # <pattern> [<file>]
