@@ -973,11 +973,12 @@ function proxy_auto ()
   
   [ -n "$OPT_PROXY_FORCE_REFRESH" ] && last=0
   if (( (now - ${last:-0}) < OPT_PROXY_REFRESH_INTERVAL )); then
-    proxy="$(<"$cache")"
+    read proxy < "$cache"
   else
-    proxy=$("${WGET[@]}" --no-proxy -q -O - wpad/wpad.dat \
-    | grep PROXY \
-    | sed -e 's/^.*PROXY\s*\([^"]*\).*$/http:\/\/\1/g')
+    read proxy < <(
+      "${WGET[@]}" --no-proxy -q -O - wpad/wpad.dat \
+      | sed -nE 's@//.*@@g;/PROXY/s@^.*PROXY\s*([^"; ]*).*$@http://\1@gp'
+    )
     echo "$proxy" > "$cache"
   fi
   [ -n "$proxy" ] && proxy_set "$proxy"
