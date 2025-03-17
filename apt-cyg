@@ -331,17 +331,12 @@ function verbose ()
   (( 1 < $# )) && echo "${@:2}" || cat
 } >&2
 
-# Usage: verbosefor [level]
-function verbosefor ()
-{
-  (( OPT_VERBOSE_LEVEL < ${1:-1} )) && echo /dev/null || echo /dev/stderr
-}
-
 function update_verbosefor ()
+# Assign /dev/fd/{1000..1005} for ${verbosefor[0..5]}
 {
   local i
   for i in {0..5}; do
-    (( OPT_VERBOSE_LEVEL < i )) && verbosefor[i]=/dev/null || verbosefor[i]=/dev/stderr
+    (( OPT_VERBOSE_LEVEL < i )) && eval exec "100$i>/dev/null" || eval exec "100$i>&2"
   done
 }
 
@@ -865,7 +860,7 @@ function fetch_trustedkeys ()
 function verify_signatures ()
 {
   while [ $# -gt 0 ]; do
-    if ! "${GPG[@]}" --verify "$1" &>"${verbosefor[2]}"; then
+    if ! "${GPG[@]}" --verify "$1" 1>&1002 2>&1002; then
       error "BAD signature: $1"
       return 1
     else
@@ -1602,7 +1597,7 @@ function apt-cyg-update-setup ()
   if download_and_verify "https://cygwin.com/${SETUP_EXE}"; then
     files_backup_clean "${TARGETS[@]}"
     chmod +x "${SETUP_EXE}"
-    ls -l "${SETUP_EXE}" >"${verbosefor[2]}"
+    ls -l "${SETUP_EXE}" >&1002
   else
     files_restore "${TARGETS[@]}"
     error "${SETUP_EXE} could not be downloaded: Rollbacked it and aborted."
@@ -2072,7 +2067,7 @@ function progress_init ()
   [ -n "$OPT_NO_PROGRESS" ] && return
   #          0        1         2         3         4         5
   #          12345678901234567890123456789012345678901234567890
-  echo -ne "|..................................................|\r" >"${verbosefor[0]}"
+  echo -ne "|..................................................|\r" >&1000
 }
 
 function progress_update () #= current total=100
@@ -2082,16 +2077,16 @@ function progress_update () #= current total=100
   local p=$((2 + 50 * ($1    ) / $n))
   local q=$((2 + 50 * ($1 + 1) / $n))
   if (( q - p <= 1 )); then
-    printf "\e[%dG%s" $p "${PROGRESS_CHAR[($1 % 4 + 1) * (1 + $p - $q)]}" >"${verbosefor[0]}"
+    printf "\e[%dG%s" $p "${PROGRESS_CHAR[($1 % 4 + 1) * (1 + $p - $q)]}" >&1000
   else
-    printf "\e[%dG%s" $p "$(seq $((q - p))|awk '{printf "="}')" >"${verbosefor[0]}"
+    printf "\e[%dG%s" $p "$(seq $((q - p))|awk '{printf "="}')" >&1000
   fi
 }
 
 function progress_finish ()
 {
   [ -n "$OPT_NO_PROGRESS" ] && return
-  echo >"${verbosefor[0]}"
+  echo >&1000
 }
 
 # Lesser Parallel for Embedding
